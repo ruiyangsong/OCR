@@ -196,8 +196,11 @@ def _color_space(image):
     cv2.waitKey(0)
 
 def gray_histogram(image, mask=None, bins=256):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    hist = cv2.calcHist(images=[image],
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    hist = cv2.calcHist(images=[gray],
                         channels=[0],
                         mask=mask, # 只考虑 mask 后得到目标区域的像素点
                         histSize=[bins], # number of bins
@@ -268,11 +271,36 @@ def multi_dim_histogram(image, dim=3, bins=32):
     plt.show()
 
 def equalizeHist(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
     eq = cv2.equalizeHist(gray)
     cv2.imshow("Histogram Equalization", np.hstack([gray, eq]))
     cv2.waitKey(0)
     return gray
+
+def erode(image, ksize=3, iter=1, printable=False):
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    kernel = np.ones((ksize, ksize), dtype='uint8')
+    erosion = cv2.erode(gray,kernel=kernel,iterations=iter)
+    if printable:
+        cv2.imshow("Erosion", erosion)
+        cv2.waitKey(0)
+    return erosion
+
+def dilate(image, ksize=3, iter=1):
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    kernel = np.ones((ksize, ksize), dtype='uint8')
+    dst = cv2.dilate(gray, kernel=kernel, iterations=iter)
+    show_img(np.hstack((gray, dst)))
+    return dst
 
 def blur(image, kernel_size=(3,3), mode='average', sigmax=0, sigmaC=21, sigmaS=21):
     '''
@@ -307,13 +335,17 @@ def simple_threshold(image, threshold=125, max_value=255):
     :param image:
     :return:
     '''
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
     T, binary = cv2.threshold(gray,thresh=threshold,maxval=max_value,type=cv2.THRESH_BINARY)
     T, binary_inv = cv2.threshold(gray,thresh=threshold,maxval=max_value,type=cv2.THRESH_BINARY_INV)
     show_img(np.hstack((gray, binary, binary_inv)))
     return binary
 
-def adaptive_threshold(image,max_value=255,adaptive_mode=cv2.ADAPTIVE_THRESH_MEAN_C,threshold_mode=cv2.THRESH_BINARY_INV,neighbor=11,C_value=4):
+def adaptive_threshold(image,max_value=255,adaptive_mode=cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                       threshold_mode=cv2.THRESH_BINARY,neighbor=5, C_value=4):
     '''
     :param image:
     :param max_value:
@@ -327,36 +359,49 @@ def adaptive_threshold(image,max_value=255,adaptive_mode=cv2.ADAPTIVE_THRESH_MEA
     :param C_value: 用于调整阈值（阈值减去C_value）
     :return:
     '''
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
     binary = cv2.adaptiveThreshold(gray,
                                    maxValue=max_value,
-                                   adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                   thresholdType=cv2.THRESH_BINARY_INV,
-                                   blockSize=11, #neighborhood size, odd number
-                                   C=4)
+                                   adaptiveMethod=adaptive_mode,
+                                   thresholdType=threshold_mode,
+                                   blockSize=neighbor, #neighborhood size, odd number
+                                   C=C_value)
     cv2.imshow("Thresh", binary)
     cv2.waitKey(0)
     return binary
 
-def otsu_threshold(image):
+def otsu_threshold(image, max_value=255, printable=False):
     '''
     Otsu’s method assumes there are two peaks in the grayscale histogram of the image. It then tries to find an optimal
     value to separate these two peaks – thus our threshold value of T.
     :param image:
     :return:
     '''
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
     T = mahotas.thresholding.otsu(gray)
     print('The threshold is',T)
     binary = gray.copy()
-    binary[binary > T] = 255
-    binary[binary < 255] = 0
+    binary[binary > T] = max_value
+    binary[binary <= T] = 0
     binary = cv2.bitwise_not(binary)
-    show_img(binary)
+
+    if printable:
+        cv2.imshow("Binary", binary)
+        cv2.waitKey(0)
+
     return binary
 
 def riddler_threshold(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
     T = mahotas.thresholding.rc(gray)
     print('The threshold is',T)
     binary = gray.copy()
@@ -366,13 +411,75 @@ def riddler_threshold(image):
     show_img(binary)
     return binary
 
+def laplacian(image):
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    print('gray:',gray.shape)
+    lap = cv2.Laplacian(gray, cv2.CV_64F)
+    print(np.min(lap))
+    lap = np.uint8(np.absolute(lap))
+    cv2.imshow("Laplacian", lap)
+    cv2.waitKey(0)
+    return lap
 
+def sobel(image, printable=False):
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    sobelX = cv2.Sobel(gray, cv2.CV_64F, 1, 0) #Specify a value of 1 and 0 to find vertical edge-like regions and 0 and 1 to find horizontal edge-like regions
+    sobelY = cv2.Sobel(gray, cv2.CV_64F, 0, 1)
+    sobelX = np.uint8(np.absolute(sobelX))
+    sobelY = np.uint8(np.absolute(sobelY))
+    sobelCombined = cv2.bitwise_or(sobelX, sobelY)
+    # cv2.imshow("Sobel X", sobelX)
+    # cv2.imshow("Sobel Y", sobelY)
+    if printable:
+        cv2.imshow("Sobel Combined", sobelCombined)
+        cv2.waitKey(0)
+    return sobelCombined
+
+def canny_edge(image, thod1=30, thod2=150):
+    '''
+    :param image:
+    :param thod1: Any value below threshold1 is considered not to be an edge.
+    :param thod2: Any gradient value larger than threshold2 is considered to be an edge.
+    Values in between threshold1 and threshold2 are either classified as edges or non-edges
+    based on how their intensities are “connected”.
+    :return:
+    '''
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    gray = cv2.GaussianBlur(gray, (11, 11), 0)
+    cv2.imshow("Blurred", gray)
+    canny = cv2.Canny(gray,threshold1=thod1, threshold2=thod2)
+    cnts= cv2.findContours(canny.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if len(cnts) == 2:
+        cnts = cnts[0]
+    elif len(cnts) == 3:
+        cnts = cnts[1]
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:5]
+    img_copy = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    cv2.drawContours(img_copy, cnts, -1, (0, 255, 0), 2)
+
+    cv2.imshow("Canny", img_copy)
+    cv2.waitKey(0)
+    return img_copy
+
+def detect_line():
+    pass
 
 if __name__ == '__main__':
-    img_pth = '../data/waves.jpg'
+    img_pth = '../data/ZSK42357-000003-L000002.tif'
     image = read_img(img_pth)
-    otsu_threshold(image)
-    # blur(image,mode='bilateral',kernel_size=(7,7))
+    # dilate(image)
+    # otsu_threshold(image)
+    blur(image, mode='bilateral', kernel_size=(7,7))
     # equalizeHist(image)
     # multi_dim_histogram(image,dim=2)
     # color_space(image)
