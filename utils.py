@@ -13,12 +13,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def show_img(image, gray=False, mode='cv2'):
+def show_img(image, gray=False, mode='cv2', name='Image'):
     '''
     :param camp: "gray" for gray scale
     '''
     if mode == 'cv2':
-        cv2.imshow("Image", image)
+        # cv2.namedWindow(name, cv2.WINDOW_NORMAL)
+        # cv2.namedWindow(name, cv2.WINDOW_KEEPRATIO)
+        cv2.imshow(name, image)
         cv2.waitKey(0)
     else:
         camp = 'gray' if gray else None
@@ -280,27 +282,45 @@ def equalizeHist(image):
     cv2.waitKey(0)
     return gray
 
-def erode(image, ksize=3, iter=1, printable=False):
+def erode(image, kernel=np.ones((3,3),dtype='uint8'), iter=1):
+    '''
+    :param image: image, white pixel on black canvas
+    :param kernel: numpy array with dtype=uint8
+    :param iter:
+    :param printable:
+    :return:
+    '''
     try:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     except:
         gray = image
-    kernel = np.ones((ksize, ksize), dtype='uint8')
     erosion = cv2.erode(gray,kernel=kernel,iterations=iter)
-    if printable:
-        cv2.imshow("Erosion", erosion)
-        cv2.waitKey(0)
     return erosion
 
-def dilate(image, ksize=3, iter=1):
+def dilate(image, kernel=np.ones((3,3),dtype='uint8'), iter=1):
     try:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     except:
         gray = image
-    kernel = np.ones((ksize, ksize), dtype='uint8')
     dst = cv2.dilate(gray, kernel=kernel, iterations=iter)
-    show_img(np.hstack((gray, dst)))
     return dst
+
+def opening(image, kernel=np.ones((3,3),dtype='uint8'),iter=1):
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    gray_open = cv2.morphologyEx(gray, cv2.MORPH_OPEN, kernel,iterations=iter)
+    return gray_open
+
+def closing(image, kernel=np.ones((3,3),dtype='uint8'),iter=1):
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except:
+        gray = image
+    gray_close = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel,iterations=iter)  ## 有缺陷，填补缺陷
+    return gray_close
+
 
 def blur(image, kernel_size=(3,3), mode='average', sigmax=0, sigmaC=21, sigmaS=21):
     '''
@@ -385,11 +405,11 @@ def otsu_threshold(image, max_value=255, printable=False):
     except:
         gray = image
     T = mahotas.thresholding.otsu(gray)
-    print('The threshold is',T)
+    print('\nThe threshold is',T)
     binary = gray.copy()
     binary[binary > T] = max_value
     binary[binary <= T] = 0
-    binary = cv2.bitwise_not(binary)
+    # binary = cv2.bitwise_not(binary)
 
     if printable:
         cv2.imshow("Binary", binary)
